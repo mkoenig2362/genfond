@@ -8,8 +8,8 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.12"
-pddl = { git = "https://github.com/AI-planning/pddl", rev = 'main' }
-dlplan = { git = "https://github.com/morxa/dlplan", rev = '961400e4cd493e0dfeb023b419d2b41f0c0600b5' }
+pddl = { git = "https://github.com/mkoenig2362/pddl", branch = "main" }
+dlplan = { git = "https://github.com/mkoenig2362/dlplan", branch = "main" }
 clingo = "*"
 pygraphviz = "*"
 tqdm = "*"

@@ -106,3 +106,15 @@ def ground_domain_predicates(domain: Domain, problem: Problem) -> set[Predicate]
             ground_predicate = _ground_formula(predicate, mapping)
             ground_predicates.add(ground_predicate)
     return ground_predicates
+
+def ground_domain_functions(domain, problem: Problem) -> set[NumericFunction]:
+    constants = domain.constants | problem.objects
+    ground_functions = set()
+    for function in domain.functions:
+        for grounding in itertools.product(constants, repeat=function.arity):
+            mapping = dict(zip(function.terms, grounding))
+            if not all(_check_types(c, v, domain.types) for v, c in mapping.items()):
+                continue
+            ground_function = _ground_formula(function, mapping)
+            ground_functions.add(ground_function)
+    return ground_functions

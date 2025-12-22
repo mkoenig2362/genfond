@@ -111,7 +111,10 @@ def main():
     for f in tqdm.tqdm(args.problem_file, disable=None):
         problems.append(pddl.parse_problem(f))
     name = args.name if args.name else domain.name
-    log.info("Starting policy generation for domain {}".format(name))
+    if config["problem_type"] == "QNP":
+        log.info("Starting policy generation for QNP problems in domain {}".format(name))
+    else:
+        log.info("Starting policy generation for domain {}".format(name))
     log.info(f"Generating policies of type {args.type}")
     stats = {
         "domain": name,

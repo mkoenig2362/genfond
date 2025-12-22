@@ -4,6 +4,7 @@ import mergedeep
 import yaml
 
 DEFAULT_CONFIG = {
+    "problem_type": "QNP", #alternative: "FOND"
     "min_complexity": 2,
     "max_complexity": 15,
     "policy_iterations": 100,

@@ -1,6 +1,7 @@
 import itertools
 import logging
 from typing import Collection, Mapping, Optional
+import math, sys
 
 import dlplan.core
 import dlplan.generator as dlplan_gen
@@ -8,19 +9,23 @@ from dlplan.core import Atom, Boolean, InstanceInfo, Numerical, SyntacticElement
 from pddl.action import Action
 from pddl.core import Domain, Formula, Problem
 from pddl.logic import Predicate
+from pddl.logic.functions import NumericFunction
+from pddl.logic.functions import EqualTo as EqualToFunction, GreaterThan, BinaryFunction
 
-from .ground import ground, ground_domain_predicates
+from .ground import ground, ground_domain_predicates, ground_domain_functions
 from .state_space_generator import (
     Alive,
     State,
     StateSpaceGraph,
     StateSpaceNode,
     apply_effects,
+    apply_effects_to_state,
     check_formula,
     generate_state_space,
 )
+from .comparison_state_space_generator import ComparisonStateGraph, generate_state_space_from_comparison_graph
 
-type Feature = Boolean | Numerical
+Feature = Boolean | Numerical
 
 log = logging.getLogger("genfond.feature_generation")
 
@@ -43,6 +48,10 @@ def construct_vocabulary_info(domain: Domain, config: Mapping) -> VocabularyInfo
         # TODO some predicates may be static.
         vocabulary.add_predicate(predicate.name, predicate.arity)
         vocabulary.add_predicate(f"{predicate.name}_G", predicate.arity)
+    for function in domain.functions:
+        # TODO some functions may be static?
+        vocabulary.add_function(function.name, function.arity)
+        vocabulary.add_function(f"{function.name}_G", function.arity)
     max_arity = max([len(action.parameters) for action in domain.actions])
     if config["include_actions"] or config["include_action_params"]:
         for i in range(max_arity):
@@ -59,7 +68,26 @@ def _get_state_from_goal(goal_formula: Formula):
     states = apply_effects(set([frozenset()]), goal_formula)
     assert len(states) == 1, f"Goal formula must define a unique goal state, found {len(states)} states: {states}"
     state = next(iter(states))
-    goal_state = {Predicate(f"{predicate.name}_G", *predicate.terms) for predicate in state}
+    goal_state = set()
+    for literal in state:
+        if isinstance(literal, Predicate):
+            goal_state.add(Predicate(f"{literal.name}_G", *literal.terms))
+        elif isinstance(literal, BinaryFunction):
+            new_ops = []
+            for op in literal.operands:
+                if isinstance(op, NumericFunction):
+                    new_ops.append(NumericFunction(f"{op.name}_G", *op.terms))
+                elif isinstance(op, Predicate):
+                    new_ops.append(Predicate(f"{op.name}_G", *op.terms))
+                else:
+                    new_ops.append(op)
+            new_operands = tuple(new_ops)
+            if isinstance(literal, GreaterThan):
+                goal_state.add(GreaterThan(*new_operands))
+            elif isinstance(literal, EqualToFunction):
+                goal_state.add(EqualToFunction(*new_operands))
+        else:
+            goal_state.add(literal)
     return goal_state
 
 
@@ -74,6 +102,10 @@ def construct_instance_info(
         map[predicate] = instance.add_atom(predicate.name, [str(t) for t in predicate.terms])
         goal_predicate = Predicate(f"{predicate.name}_G", *predicate.terms)
         map[goal_predicate] = instance.add_atom(goal_predicate.name, [str(t) for t in predicate.terms])
+    for function in ground_domain_functions(domain, problem):
+        map[function] = instance.add_function_atom(function.name, [str(t) for t in function.terms])
+        goal_function = NumericFunction(f"{function.name}_G", *function.terms)
+        map[goal_function] = instance.add_function_atom(goal_function.name, [str(t) for t in function.terms])
     if config["include_actions"]:
         for action in ground(domain, problem):
             for i, param in enumerate(action.parameters):
@@ -132,6 +164,7 @@ class FeaturePool:
         self.node_id_to_param_aug_state_ids: dict[tuple[int, int], dict[Action, list[State]]] = dict()
         self.state_id_to_node: dict[State, list[StateSpaceNode]] = dict()
         self.state_graphs = dict()
+        self.comparison_graphs = dict()
         self.instances: dict[str, InstanceInfo] = dict()
         self.mappings = dict()
         self.next_state_id = 0
@@ -145,11 +178,18 @@ class FeaturePool:
                 self.problem_name_to_id[problem.name],
                 config,
             )
-            self.state_graphs[problem.name] = generate_state_space(
-                domain,
-                problem,
-                selected_states=(selected_states.get(problem.name, None) if selected_states else None),
-            )
+            if (config["problem_type"] == "FOND"):
+                self.state_graphs[problem.name] = generate_state_space(
+                    domain,
+                    problem,
+                    selected_states=(selected_states.get(problem.name, None) if selected_states else None),
+                )
+            else: # generate by comparison
+                self.comparison_graphs[problem.name] = ComparisonStateGraph(domain, problem)
+                self.state_graphs[problem.name] = generate_state_space_from_comparison_graph(
+                    self.comparison_graphs[problem.name],
+                    selected_states=(selected_states.get(problem.name, None) if selected_states else None),
+                )
             self.instances[problem.name] = instance
             self.mappings[problem.name] = mapping
             for node in self.state_graphs[problem.name].nodes.values():
@@ -170,10 +210,10 @@ class FeaturePool:
                 feature_generator_kwargs = config["unrestricted_feature_generator"]
             else:
                 feature_generator_kwargs = config["feature_generator"]
-            booleans, numericals, concepts, roles = dlplan_gen.generate_features(
+            booleans, numericals, concepts, roles, frames_unary, frames_binary = dlplan_gen.generate_features(
                 factory,
                 list(self.states.values()),
-                *5 * [max_complexity],
+                * (6 * [max_complexity]), #5* +1 for frames complexity
                 3600,
                 10000,
                 **feature_generator_kwargs,
@@ -204,7 +244,8 @@ class FeaturePool:
             self.states[fstate] = dlplan.core.State(
                 state_id,
                 self.instances[problem.name],
-                [self.mappings[problem.name][fact] for fact in fstate],
+                [self.mappings[problem.name][fact.operands[0]] if isinstance(fact, BinaryFunction)
+                 else self.mappings[problem.name][fact] for fact in fstate],
             )
             self.node_id_to_action_aug_state_ids[(self.problem_name_to_id[problem.name], node.id)][action] = fstate
             self.state_id_to_node.setdefault(fstate, []).append(node)
@@ -221,7 +262,8 @@ class FeaturePool:
                     self.states[fstate] = dlplan.core.State(
                         state_id,
                         self.instances[problem.name],
-                        [self.mappings[problem.name][fact] for fact in fstate],
+                        [self.mappings[problem.name][fact.operands[0]] if isinstance(fact, BinaryFunction)
+                         else self.mappings[problem.name][fact] for fact in fstate],
                     )
                 self.node_id_to_param_aug_state_ids[(self.problem_name_to_id[problem.name], node.id)][action].append(
                     fstate
@@ -235,7 +277,10 @@ class FeaturePool:
         self.states[fstate] = dlplan.core.State(
             state_id,
             self.instances[problem.name],
-            [self.mappings[problem.name][fact] for fact in fstate],
+            [self.mappings[problem.name][fact.operands[0]] if isinstance(fact, BinaryFunction)
+             else self.mappings[problem.name][fact] for fact in fstate],
+            [(fact.operands[1].value if hasattr(fact.operands[1], "value") else float(fact.operands[1])) if isinstance(fact, BinaryFunction)
+                else 1.0 for fact in fstate],
         )
         self.node_id_to_state_ids[(self.problem_name_to_id[problem.name], node.id)] = fstate
         self.state_id_to_node.setdefault(fstate, []).append(node)
@@ -386,10 +431,13 @@ class FeaturePool:
 
     def node_to_clingo(self, problem: Problem, node: StateSpaceNode, stats: dict) -> str:
         problem_id = self.problem_name_to_id[problem.name]
-        clingo_program = ""
-        clingo_program += (
-            f"% " + ",".join([f'{p.name}({",".join([str(p) for p in p.terms])})' for p in node.state]) + "\n"
-        )
+        clingo_program = "%"
+        for p in node.state:
+            if isinstance(p, Predicate):
+                clingo_program += f"{p.name}({','.join([str(t) for t in p.terms])}),"
+            elif isinstance(p, EqualToFunction):
+                clingo_program += f"{p.operands[0].name}({','.join([str(t) for t in p.operands[0].terms])}){p.operands[1]},"
+        clingo_program += "\n"
         clingo_program += f"state({problem_id}, {node.id}).\n"
         if node.alive == Alive.PRUNED:
             clingo_program += f"pruned({problem_id}, {node.id}).\n"
@@ -412,9 +460,7 @@ class FeaturePool:
                         stats["num_skipped_feature_evals"] += 1
                         continue
                     feature_str = f'"{feature_str}"'
-                    eval = feature.evaluate(self.states[aug_state])
-                    if type(eval) is bool:
-                        eval = 1 if eval else 0
+                    eval = norm_eval(feature.evaluate(self.states[aug_state]))
                     clingo_program += f"eval({aug_state_id}, {feature_str}, {eval}).\n"
                     stats["num_feature_evals"] += 1
         if self.config["include_pristine_states"]:
@@ -423,9 +469,7 @@ class FeaturePool:
                     stats["num_skipped_feature_evals"] += 1
                     continue
                 feature_str = f'"{feature_str}"'
-                eval = feature.evaluate(self.states[self.node_id_to_state_ids[(problem_id, node.id)]])
-                if type(eval) is bool:
-                    eval = 1 if eval else 0
+                eval = norm_eval(feature.evaluate(self.states[self.node_id_to_state_ids[(problem_id, node.id)]]))
                 clingo_program += f"eval({problem_id}, {node.id}, {feature_str}, {eval}).\n"
                 stats["num_feature_evals"] += 1
         if self.config["include_action_params"]:
@@ -441,9 +485,7 @@ class FeaturePool:
                         if not get_aparam_predicate_name(0) in feature_str:
                             continue
                         feature_str = f'"{feature_str}"'
-                        eval = feature.evaluate(self.states[aug_state])
-                        if type(eval) is bool:
-                            eval = 1 if eval else 0
+                        eval = norm_eval(feature.evaluate(self.states[aug_state]))
                         clingo_program += f"aug_eval({aug_state_id}, {feature_str}, {eval}).\n"
                         stats["num_feature_evals"] += 1
         all_action_args = {str(p) for action in node.children.keys() for p in action.parameters}
@@ -485,8 +527,50 @@ class FeaturePool:
                     params = [f'"{p}"' for p in action.parameters]
                     for i, p in enumerate(params):
                         clingo_program += f"aparam({action_str}, {i}, {p}).\n"
+                if (self.config["problem_type"] == "QNP"):
+                    clingo_program += self.get_trans_delta(problem_id, problem.name, node, child, action)
         return clingo_program
 
+    def norm_eval(self, val):
+        if type(val) is bool:
+            return 1 if val else 0
+        elif val.is_integer():
+            return int(val)
+        elif type(val) is float:
+            if math.isinf(val): 
+                return int(1e9)
+            else:
+                return int(round(float(val)*100))
+        return val
+
+    def get_trans_delta(self, problem_id, problem_name, node, child, action):
+        # compute comparison accurate child
+        trans_deltas = ""
+        dummy_child_state = next(iter(apply_effects_to_state(node.state, action.effect)))
+        real_child_state = self.comparison_graphs[problem_name].get_comparison_child_state(node, child.id, dummy_child_state, action)
+        real_child_state_augmented = get_goal_augmented_state(self.problems[problem_name], real_child_state)
+        dlplan_child_state = dlplan.core.State(-1,
+                                                self.instances[problem_name],
+                                                [self.mappings[problem_name][fact.operands[0]] if isinstance(fact, BinaryFunction)
+                                                else self.mappings[problem_name][fact] for fact in real_child_state_augmented],
+                                                [(fact.operands[1].value if hasattr(fact.operands[1], "value") else float(fact.operands[1])) if isinstance(fact, BinaryFunction)
+                                                    else 1.0 for fact in real_child_state_augmented],
+                                            )
+        action_str = f'"{action.name}({",".join([str(p) for p in action.parameters])})"'
+        # evaluate features and how they change in the states
+        for feature_str, feature in self.features.items():
+            feat_eval_node = feature.evaluate(self.states[self.node_id_to_state_ids[(problem_id, node.id)]])
+            feat_eval_child = feature.evaluate(dlplan_child_state)
+            #if both are valid values
+            if not (feat_eval_node == sys.float_info.max) and isinstance(feat_eval_node, (int, float)) and not (feat_eval_child == sys.float_info.max) and isinstance(feat_eval_child, (int, float)):
+                if feat_eval_node < feat_eval_child:
+                    trans_deltas += f"trans_delta({problem_id}, {node.id}, {action_str}, {child.id}, \"{feature_str}\", 1).\n"
+                elif int(round(float(feat_eval_node)*100)) == int(round(float(feat_eval_child)*100)):
+                    trans_deltas += f"trans_delta({problem_id}, {node.id}, {action_str}, {child.id}, \"{feature_str}\", 0).\n"
+                elif feat_eval_node > feat_eval_child:
+                    trans_deltas += f"trans_delta({problem_id}, {node.id}, {action_str}, {child.id}, \"{feature_str}\", -1).\n"
+        return trans_deltas
+        
     def to_clingo(self) -> str:
         stats = {
             "num_skipped_feature_evals": 0,

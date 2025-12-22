@@ -37,7 +37,9 @@ from .ground import ground
 
 log = logging.getLogger("genfond.state_space_generator")
 
-type State = frozenset[Formula]
+State = frozenset[Formula]
+
+NumericValue.__repr__ = NumericValue.__str__
 
 
 def state_to_string(state: State) -> str:
@@ -153,6 +155,8 @@ def apply_effects_to_state(state: State, effects: Collection[Optional[Formula]])
             new_value = current_value + change
         elif isinstance(effects, Decrease):
             new_value = current_value - change
+        elif isinstance(effects, FunctionEqualTo):
+            return set({frozenset(state | {FunctionEqualTo(fct, change)})})
         elif isinstance(effects, (Plus, Minus, Times, Divide, ScaleUp, ScaleDown)):
             raise NotImplementedError()
         else:
@@ -211,10 +215,13 @@ class StateSpaceGraph:
         prune: bool = True,
         selected_states: Optional[set[State]] = None,
         max_num_val: Optional[int] = None,
+        generate_nodes: bool = True,
     ):
         self.domain = domain
         self.problem = problem
         self.next_id = 0
+        if not generate_nodes:
+            return
         queue = []
         self.nodes: dict[State, StateSpaceNode] = dict()
         if selected_states:
