@@ -126,6 +126,10 @@ DEFAULT_TYPE_CONFIGS = {
         "policy_type": "CONSTRAINED",
         "solve_prog": "solve_state_constraints.lp",
     },
+    "state_qnp": {
+        "policy_type": "CONSTRAINED",
+        "solve_prog": "solve_qnp_state_constraints.lp",
+    },
     "trans": {
         "policy_type": "CONSTRAINED",
         "solve_prog": "solve_trans_constraints.lp",

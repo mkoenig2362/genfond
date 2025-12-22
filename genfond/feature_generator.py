@@ -460,7 +460,7 @@ class FeaturePool:
                         stats["num_skipped_feature_evals"] += 1
                         continue
                     feature_str = f'"{feature_str}"'
-                    eval = norm_eval(feature.evaluate(self.states[aug_state]))
+                    eval = self.norm_eval(feature.evaluate(self.states[aug_state]))
                     clingo_program += f"eval({aug_state_id}, {feature_str}, {eval}).\n"
                     stats["num_feature_evals"] += 1
         if self.config["include_pristine_states"]:
@@ -469,7 +469,7 @@ class FeaturePool:
                     stats["num_skipped_feature_evals"] += 1
                     continue
                 feature_str = f'"{feature_str}"'
-                eval = norm_eval(feature.evaluate(self.states[self.node_id_to_state_ids[(problem_id, node.id)]]))
+                eval = self.norm_eval(feature.evaluate(self.states[self.node_id_to_state_ids[(problem_id, node.id)]]))
                 clingo_program += f"eval({problem_id}, {node.id}, {feature_str}, {eval}).\n"
                 stats["num_feature_evals"] += 1
         if self.config["include_action_params"]:
@@ -485,7 +485,7 @@ class FeaturePool:
                         if not get_aparam_predicate_name(0) in feature_str:
                             continue
                         feature_str = f'"{feature_str}"'
-                        eval = norm_eval(feature.evaluate(self.states[aug_state]))
+                        eval = self.norm_eval(feature.evaluate(self.states[aug_state]))
                         clingo_program += f"aug_eval({aug_state_id}, {feature_str}, {eval}).\n"
                         stats["num_feature_evals"] += 1
         all_action_args = {str(p) for action in node.children.keys() for p in action.parameters}

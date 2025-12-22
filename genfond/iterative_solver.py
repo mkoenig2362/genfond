@@ -76,6 +76,7 @@ def solve(
             sum(state_counts),
         )
     )
+    print(config["solve_prog"])
     solver = Solver(
         asp_instance,
         config["num_threads"],

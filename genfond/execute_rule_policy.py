@@ -19,6 +19,8 @@ from .ground import ground
 from .policy import PolicyType
 from .rule_policy import Cond, Effect, Policy
 from .state_space_generator import State, apply_action_effects, check_formula
+from pddl.logic import Predicate
+from pddl.logic.functions import EqualTo as EqualToFunction, GreaterThan, BinaryFunction, NumericFunction
 
 log = logging.getLogger("genfond.execution.rule")
 
@@ -54,13 +56,18 @@ def _get_dlplan_state(
     action: Optional[Action] = None,
 ) -> dlplan.core.State:
     try:
+        atoms = get_action_augmented_state(problem, state, config, action)
         return dlplan.core.State(
             -1,
             instance,
-            [mapping[predicate] for predicate in get_action_augmented_state(problem, state, config, action)],
+            [mapping[atom] if isinstance(atom, Predicate)
+                else mapping[atom.operands[0]]
+                for atom in atoms],
+            [(atom.operands[1].value if hasattr(atom.operands[1], "value") else float(atom.operands[1])) if isinstance(atom, BinaryFunction)
+                else 1.0 for atom in atoms],
         )
     except KeyError as e:
-        log.critical(f'Cannot find predicate in mapping {"\n".join(f"{k}: {v}" for k, v in mapping.items())}: {e}')
+        log.critical(f'Cannot find atom in mapping {"\n".join(f"{k}: {v}" for k, v in mapping.items())}: {e}')
         raise
 
 
@@ -142,6 +149,8 @@ def state_string(state: State) -> str:
 
 
 def execute_rule_policy(domain: Domain, problem: Problem, policy: Policy, config: dict) -> list[str]:
+    if not policy: # TODO is initial == goal?
+        raise RuntimeError("Goal not reached!")
     log.info(
         f"Executing policy:\n{policy}\nin {domain.name} for problem {problem.name} with features {policy.features}"
     )
