@@ -1,0 +1,18 @@
+(define (problem p10)
+  (:domain got_to)
+  (:objects ROBOT1 ROBOT2 - robot TARGET - target)
+  (:init
+    (is_robot ROBOT1)
+    (is_robot ROBOT2)
+    (is_target TARGET)
+    (= (x ROBOT1) 5)
+    (= (x ROBOT2) 1)
+    (= (x TARGET) 0)
+  )
+  (:goal
+    (and
+      (= (x ROBOT1) (x TARGET))
+      (= (x ROBOT2) (x TARGET))
+    )
+  )
+)
