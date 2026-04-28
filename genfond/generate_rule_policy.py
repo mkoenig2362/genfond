@@ -1,5 +1,6 @@
 import logging
 from typing import Any, Optional
+import pprint
 
 from .policy import PolicyType
 from .rule_policy import Cond, Effect, Policy, PolicyRule, StateConstraint
@@ -91,10 +92,12 @@ def selected_action_to_rule(
 
 
 def generate_rule_policy(solution: dict[str, Any], policy_type: PolicyType = PolicyType.EXACT) -> Policy:
+    #pprint.pprint(solution)
     rules = set()
     constraints = set()
     state_constraints = set()
     features = solution["selected"]
+    print(solution["selected"])
     for instance, state, action in solution["good_action"]:
         rule = selected_action_to_rule(instance, state, action, solution["bool_eval"], solution["good_trans_delta"])
         if rule:

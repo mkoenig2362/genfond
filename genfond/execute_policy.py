@@ -13,3 +13,4 @@ def execute_policy(domain, problem, policy, config=None):
         if not config:
             config = ConfigHandler()
         return execute_rule_policy(domain, problem, policy, config)
+        

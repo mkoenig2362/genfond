@@ -11,9 +11,13 @@
         :parameters (?g - gripper)
         :precondition (and )
         :effect (and (decrease (x ?g) 1)))
-    (:action collect
-        :parameters (?p - package ?g - gripper)
-        :precondition (and (= (x ?p) (x ?g)) (free))
+    (:action collect1
+        :parameters (?p - package ?g - gripper ?t - target)
+        :precondition (and (= (x ?p) (x ?g)) (> (x ?t) (x ?g)) (free))
+        :effect (and (holding ?p) (not (free))))
+    (:action collect2
+        :parameters (?p - package ?g - gripper ?t - target)
+        :precondition (and (= (x ?p) (x ?g)) (< (x ?t) (x ?g)) (free))
         :effect (and (holding ?p) (not (free))))
     (:action put
         :parameters (?p - package ?g - gripper ?t - target)

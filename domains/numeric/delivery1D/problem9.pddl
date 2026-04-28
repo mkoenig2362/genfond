@@ -1,7 +1,0 @@
-(define (problem p9)
-    (:domain delivery)
-    (:objects p1 p2 p3 - package g - gripper t - target)
-    (:init (= (x p1) 3) (= (x p2) 2) (= (x p3) 0) (= (x t) 0) (= (x g) 10)
-            (is_p p1) (is_p p2) (is_p p3) (is_g g) (is_t t) (free))
-    (:goal (and (= (x p1) (x t)) (= (x p2) (x t)) (= (x p3) (x t)) 
-            (free) (not (holding p1)) (not (holding p2)) (not (holding p3)))))

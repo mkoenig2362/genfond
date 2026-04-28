@@ -36,7 +36,7 @@ class NoActionError(PolicyExecutionError):
     def __init__(self, trace: dict[State, State], state: State):
         self.trace = trace
         self.state = state
-        super().__init__(f"No action found for state: {", ".join([str(p) for p in state])}")
+        super().__init__(f"No action found for state: {', '.join([str(p) for p in state])}")
 
 
 class CycleError(PolicyExecutionError):
@@ -67,7 +67,8 @@ def _get_dlplan_state(
                 else 1.0 for atom in atoms],
         )
     except KeyError as e:
-        log.critical(f'Cannot find atom in mapping {"\n".join(f"{k}: {v}" for k, v in mapping.items())}: {e}')
+        mapping_str = "\n".join(f"{k}: {v}" for k, v in mapping.items())
+        log.critical(f'Cannot find predicate in mapping:\n{mapping_str}: {e}')
         raise
 
 
@@ -218,7 +219,8 @@ def execute_rule_policy(domain: Domain, problem: Problem, policy: Policy, config
             succs_evals = [eval_state(instance, mapping, features, problem, succ, config) for succ in succs]
             log.debug(f"succs_evals: {succs_evals}")
             succs_diffs = {eval_state_diff(feature_eval, succ_eval) for succ_eval in succs_evals}
-            log.debug(f'succs_diffs:\n{"\n".join([", ".join([str(d) for d in ds]) for ds in succs_diffs])}')
+            succs_diffs_str = "\n".join(", ".join(str(d) for d in ds) for ds in succs_diffs)
+            log.debug(f'succs_diffs:\n{succs_diffs_str}')
             ok = True
             for constraint in enabled_constraints:
                 if constraint.effs & succs_diffs:

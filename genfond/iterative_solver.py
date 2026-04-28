@@ -76,7 +76,6 @@ def solve(
             sum(state_counts),
         )
     )
-    print(config["solve_prog"])
     solver = Solver(
         asp_instance,
         config["num_threads"],
@@ -89,6 +88,7 @@ def solve(
         log.info("No solution found")
         return None
     solution = solver.solution
+    #print("SOLUTION", solution)
     stats |= {
         "clingoAtoms": solver.statistics["problem"]["lp"]["atoms"],
         "clingoRules": solver.statistics["problem"]["lp"]["rules"],

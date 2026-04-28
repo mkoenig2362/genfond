@@ -1,0 +1,16 @@
+(define (problem delivery1d-001-5)
+  (:domain delivery)
+  (:objects p1 - package g - gripper t - target)
+  (:init
+    (= (x p1) 1.0)
+    (= (x t) 0.0)
+    (= (x g) 0.0)
+    (is_p p1)
+    (is_g g)
+    (is_t t)
+    (free))
+  (:goal (and
+    (= (x p1) (x t))
+    (free)
+    (not (holding p1))))
+)

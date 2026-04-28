@@ -56,13 +56,13 @@ def state_to_string(state: State) -> str:
 
 def eval_function_term(term: FunctionExpression, state: State) -> float | int:
     if isinstance(term, NumericValue):
-        return term.value
+        return float(term.value)
     elif isinstance(term, NumericFunction):
         for f in state:
             if not isinstance(f, FunctionEqualTo):
                 continue
             if f.operands[0] == term:
-                return f.operands[1].value
+                return float(f.operands[1].value) #float
         # TODO: check if this is correct
         # DZC: This is probably be fine. If a numeric fluent does not appear in the initial
         # state of the PDDL, its value is assumed to be 0.

@@ -1,0 +1,64 @@
+--------------------- Slurm Task Prolog ------------------------
+Job ID: 489614
+Job name: genfond.bash
+Host: cn-106
+Date: Do 30. Okt 13:12:04 CET 2025
+User: marleen.koenig
+Slurm account: rleap
+Slurm partition: rleap_cpu
+Work dir: 
+------------------
+Node usage:
+JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)
+489614 rleap_cpu genfond. marleen.  R       0:00      1 cn-106
+------------------
+Show launch script with:
+sacct -B -j 
+------------------
+--------------------- Slurm Task Prolog ------------------------
+2025-10-30 13:12:05,054 INFO     Setting log level for genfond.execution to CRITICAL
+2025-10-30 13:12:05,054 INFO     Parsing domain ...
+2025-10-30 13:12:05,162 INFO     Parsing problems ...
+2025-10-30 13:12:05,312 INFO     Starting policy generation for domain got_to
+2025-10-30 13:12:05,312 INFO     Generating policies of type state
+2025-10-30 13:12:05,312 INFO     Starting solver for p1 with max complexity 2
+2025-10-30 13:12:05,333 INFO     Pruned 0 dead out of 9 in p1
+2025-10-30 13:12:05,335 INFO     Found 9 uninformative feature(s)
+2025-10-30 13:12:05,335 INFO     Found 0 uninformative concept(s)
+2025-10-30 13:12:05,335 INFO     Found 0 uninformative role(s)
+2025-10-30 13:12:05,340 INFO     Generated program with 0 feature evaluations (81 skipped), 0 concept evaluations (0 skipped), and 0 role evaluations (0 skipped)
+2025-10-30 13:12:05,340 INFO     Solving p1 with 9 features, 0 concepts, 0 roles (restricted); up to enforced complexity 2, and 9 = 9 states
+/work/rleap1/marleen.koenig/ba/code/genfond/genfond/solve_constraints.lp:16:26-42: info: atom does not occur in any rule head:
+  eval(I,S,F,V)
+
+/work/rleap1/marleen.koenig/ba/code/genfond/genfond/solve_constraints.lp:17:26-42: info: atom does not occur in any rule head:
+  eval(I,S,F,V)
+
+2025-10-30 13:12:05,360 WARNING  Error during policy generation for p1 with max complexity 2: could not set option value
+2025-10-30 13:12:05,360 INFO     Solver wall time: 0.05s
+2025-10-30 13:12:05,360 INFO     Solver CPU time: 0.05s
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/work/rleap1/marleen.koenig/ba/code/genfond/genfond/__main__.py", line 208, in <module>
+    main()
+  File "/work/rleap1/marleen.koenig/ba/code/genfond/genfond/__main__.py", line 146, in main
+    policy, succs, solve_stats = solve_iteratively(domain, problems, config)
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work/rleap1/marleen.koenig/ba/code/genfond/genfond/iterative_solver.py", line 131, in solve_iteratively
+    ) in problem_iterator:
+         ^^^^^^^^^^^^^^^^
+  File "/work/rleap1/marleen.koenig/ba/code/genfond/genfond/problem_iterator.py", line 90, in __next__
+    assert self.last_result != Result.UNKNOWN, "You must set the result of the last problem before calling next"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: You must set the result of the last problem before calling next
+---------------------------------1-----------------------------------------
+----------------------------------2----------------------------------------
+--------------------- Slurm Task Epilog ------------------------
+Job ID: 489614
+Time: Do 30. Okt 13:12:05 CET 2025
+Elapsed Time: 00:00:01
+Billing per second for TRES: billing=149,cpu=32,mem=120000M,node=1
+Show resource usage with e.g.:
+sacct -j 489614 -o Elapsed,TotalCPU,UserCPU,SystemCPU,MaxRSS,ReqTRES%60,MaxDiskRead,MaxDiskWrite
+--------------------- Slurm Task Epilog ------------------------

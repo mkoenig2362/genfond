@@ -11,12 +11,14 @@ from pddl.core import Domain, Problem
 from pddl.logic import Predicate
 from pddl.logic.base import And, Formula, Not, OneOf
 from pddl.logic.effects import When
-from pddl.logic.functions import EqualTo as FunctionEqualTo
 from pddl.logic.functions import (
     Assign,
     BinaryFunction,
     Decrease,
     Divide,
+)
+from pddl.logic.functions import EqualTo as FunctionEqualTo
+from pddl.logic.functions import (
     FunctionExpression,
     GreaterEqualThan,
     GreaterThan,
@@ -39,7 +41,7 @@ from collections import defaultdict
 from typing import Iterable, Dict, Set, Tuple, Optional
 
 
-log = logging.getLogger("genfond.comparison_state_space_generator")
+log = logging.getLogger("genfond.backwards_state_space_generator")
 
 #-------- class handeling ordering and equality for one set of functions --------
 class FunctionSet:
@@ -99,7 +101,7 @@ class FunctionSet:
                 return False
         return True
     
-    def _less_than(self, o1, o2) -> bool:
+    def _less_than(self, o1, o2) -> bool: # o1 < o2, 0=no,1=yes,2=possible
         if isinstance(o1, NumericValue):
             o1 = int(o1.value)
         if isinstance(o2, NumericValue):
@@ -212,20 +214,21 @@ class ComparisonNode:
         return True
 
 
-#-------- Graph with Comparison Nodes --------
+#-------- Graph made out of Comparison Nodes --------
 class ComparisonStateGraph:
     def __init__(
         self,
         domain: Domain,
         problem: Problem,
         prune: bool = True,
+        #selected_states: Optional[set[ComparisonState]] = None, TODO what are these for?
+        #max_num_val: Optional[int] = None,
     ):
         self.domain = domain
         self.problem = problem
         self.next_id = 0
         queue = []
         self.nodes: dict[int, ComparisonNode] = dict()
-
         # define root as the init and build the Function sets
         self.root = self.set_init_node() # = self.root
         self.root.id = self.next_id
@@ -329,7 +332,7 @@ class ComparisonStateGraph:
                     new_set.represent[r_value].add(r)
                 if r_value not in new_set.ordering:
                     inserted = False
-                    for v in new_set.ordering:
+                    for v in new_set.ordering.copy():
                         if v > r_value:
                             new_set.ordering.insert(new_set.ordering.index(v), r_value)
                             inserted = True
@@ -693,6 +696,11 @@ def compute_alive(nodes: Collection[ComparisonNode]) -> None:
 
 
 def _collect_dynamic_symbols(domain: Domain, problem: Problem):
+    """
+    Return two *sets*:
+        dyn_predicates … every predicate symbol that is added/deleted
+        dyn_functions  … every function symbol that is assigned/increased/…
+    """
     dyn_predicates = set()
     dyn_functions = set()
     for action in ground(domain, problem):
@@ -714,6 +722,10 @@ def _collect_dynamic_symbols(domain: Domain, problem: Problem):
     return dyn_predicates, dyn_functions
 
 def classify_static_fluents(domain: Domain, problem: Problem):
+    """
+    Return a dict  ground_fluent -> is_static  (bool)    Return a dict  ground_fluent -> is_static  (bool)
+    where ground_fluent is either an Atom (predicate) or a NumericFunction.
+    """
     ground_preds = ground_domain_predicates(domain, problem)
     ground_funcs = ground_domain_functions(domain, problem)
     dyn_preds_sym, dyn_funcs_sym = _collect_dynamic_symbols(domain, problem)
@@ -725,3 +737,15 @@ def classify_static_fluents(domain: Domain, problem: Problem):
         if f not in dyn_funcs_sym:
             result_funcs.append(f)
     return result_preds, result_funcs
+
+
+
+
+
+def non_valid_values(node: ComparisonNode, value: int) -> bool:
+    for k, gr in node.functions["<"].items():
+        if not isinstance(k, NumericValue):
+            for g in gr:
+                if isinstance(g, NumericValue) and g.value == value:
+                    return True
+    return False

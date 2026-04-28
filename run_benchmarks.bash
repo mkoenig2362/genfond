@@ -1,7 +1,7 @@
 #!/bin/bash
 
-DOMAINS="${DOMAINS:-$(find -L domains/selected -mindepth 1 -maxdepth 1 -type d)}"
-POLICY_TYPE="${POLICY_TYPE:-datalog}"
+DOMAINS="${DOMAINS:-$(find -L domains/numeric -mindepth 1 -maxdepth 1 -type d)}"
+POLICY_TYPE="${POLICY_TYPE:-state}"
 # Set EXCLUDE if some nodes should be excluded from the slurm job, e.g., `EXCLUDE="cn-[409-415]"`
 EXCLUDE="${EXCLUDE:+--exclude=$EXCLUDE}"
 CONFIG="${CONFIG:+--config $CONFIG}"

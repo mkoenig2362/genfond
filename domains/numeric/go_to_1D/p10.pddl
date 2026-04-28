@@ -5,9 +5,9 @@
     (is_robot ROBOT1)
     (is_robot ROBOT2)
     (is_target TARGET)
-    (= (x ROBOT1) 5)
-    (= (x ROBOT2) 1)
-    (= (x TARGET) 0)
+    (= (x ROBOT1) 1.0)
+    (= (x ROBOT2) 7.0)
+    (= (x TARGET) 0.0)
   )
   (:goal
     (and

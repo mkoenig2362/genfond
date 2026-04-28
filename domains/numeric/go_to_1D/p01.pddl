@@ -4,8 +4,8 @@
   (:init
     (is_robot ROBOT1)
     (is_target TARGET)
-    (= (x ROBOT1) 2)
-    (= (x TARGET) 1)
+    (= (x ROBOT1) 8.0)
+    (= (x TARGET) 0.0)
   )
   (:goal
     (and

@@ -1,6 +1,0 @@
-(define (problem snow-01)
-  (:domain snow)
-  (:objects W_1 - ww D_1 - dw)
-  (:init (= (snow W_1)  2) (= (snow D_1) 3))
-  (:goal (and (= (snow W_1) 0) (= (snow D_1) 0)))
-)

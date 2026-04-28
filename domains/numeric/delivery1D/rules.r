@@ -1,38 +1,16 @@
-F == gripper free
-MD == max(dist(x(),x()))
-MD_{PtoT} == max(dist(restr(x(),is_p),restr(x(),is_t)))
-D_{GtoT} == min(dist(restr(x(),is_g),restr(x(),is_t)))
-
-
-
-{ F ∧ MD > 0 ∧ MD_{PtoT} > 0 }  ⇒  { ↑D_{GtoT} }
-{ F ∧ MD > 0 ∧ MD_{PtoT} > 0 ∧ D_{GtoT} > 0 }  ⇒  { ¬F }
-{ MD = 0 ∧ MD_{PtoT} = 0 ∧ D_{GtoT} = 0 ∧ ¬F }  ⇒  { F }
-{ MD > 0 ∧ MD_{PtoT} > 0 ∧ D_{GtoT} = 0 ∧ ¬F }  ⇒  { F }
-{ MD > 0 ∧ MD_{PtoT} > 0 ∧ D_{GtoT} = 0 ∧ ¬F }  ⇒  { ↓MD_{PtoT} ∧ F ∧ ↓MD }
-{ MD > 0 ∧ MD_{PtoT} > 0 ∧ D_{GtoT} > 0 }  ⇒  { ↓D_{GtoT} ∧ ↓MD }
-{ MD > 0 ∧ MD_{PtoT} > 0 ∧ D_{GtoT} > 0 ∧ ¬F }  ⇒  {  ; ↓D_{GtoT} }
-{ MD > 0 ∧ MD_{PtoT} > 0 ∧ D_{GtoT} > 0 ∧ ¬F }  ⇒  {  }
-{ MD > 0 ∧ MD_{PtoT} > 0 ∧ D_{GtoT} > 0 ∧ ¬F }  ⇒  { ↓D_{GtoT} }
-{ MD > 0 ∧ D_{GtoT} > 0 ∧ ¬F }  ⇒  { ↓D_{GtoT} ∧ ↓MD }
-
-
-
-
-
-{
-(0, 5, 'down(g)'), 
-(0, 4, 'up(g)'), 
-(0, 9, 'up(g)'), 
-(0, 7, 'put(p1,g,t)'), 
-(0, 11, 'put(p1,g,t)'), 
-(0, 2, 'down(g)'), 
-(0, 3, 'up(g)'), 
-(0, 1, 'collect(p1,g)'), 
-(0, 0, 'down(g)'), 
-(0, 4, 'down(g)'), 
-(0, 15, 'down(g)'), 
-(0, 14, 'up(g)'), 
-(0, 6, 'up(g)'), 
-(0, 8, 'up(g)'), 
-}
+2026-04-28 17:34:58,640 INFO     Policy solves 50 out of 50 problems, unsolved:
+2026-04-28 17:34:58,640 INFO     Final policy: 7 rules, 0 transition constraints, 0 state constraints with 4 features: b_nullary(free), n_maximum(f_distance(f_primitive_unary(x,0),f_primitive_unary(x,0))), n_maximum(f_distance(f_restrict_unary(f_primitive_unary(x,0),c_primitive(is_p,0)),f_restrict_unary(f_primitive_unary(x,0),c_primitive(is_t,0)))), n_sum_frame(f_primitive_unary(x,0))
+Rules:
+{ b_nullary(free) ∧ n_maximum(f_distance(f_primitive_unary(x,0),f_primitive_unary(x,0))) > 0 ∧ n_maximum(f_distance(f_restrict_unary(f_primitive_unary(x,0),c_primitive(is_p,0)),f_restrict_unary(f_primitive_unary(x,0),c_primitive(is_t,0)))) > 0 }  ⇒  { ¬b_nullary(free) }
+{ b_nullary(free) ∧ n_maximum(f_distance(f_primitive_unary(x,0),f_primitive_unary(x,0))) > 0 ∧ n_maximum(f_distance(f_restrict_unary(f_primitive_unary(x,0),c_primitive(is_p,0)),f_restrict_unary(f_primitive_unary(x,0),c_primitive(is_t,0)))) > 0 }  ⇒  { ↑n_sum_frame(f_primitive_unary(x,0)) }
+{ n_maximum(f_distance(f_primitive_unary(x,0),f_primitive_unary(x,0))) > 0 ∧ n_maximum(f_distance(f_restrict_unary(f_primitive_unary(x,0),c_primitive(is_p,0)),f_restrict_unary(f_primitive_unary(x,0),c_primitive(is_t,0)))) > 0 }  ⇒  { ↓n_maximum(f_distance(f_primitive_unary(x,0),f_primitive_unary(x,0))) ∧ ↑n_sum_frame(f_primitive_unary(x,0)) }
+{ n_maximum(f_distance(f_primitive_unary(x,0),f_primitive_unary(x,0))) > 0 ∧ n_maximum(f_distance(f_restrict_unary(f_primitive_unary(x,0),c_primitive(is_p,0)),f_restrict_unary(f_primitive_unary(x,0),c_primitive(is_t,0)))) > 0 }  ⇒  { ↓n_maximum(f_distance(f_primitive_unary(x,0),f_primitive_unary(x,0))) ∧ ↓n_sum_frame(f_primitive_unary(x,0)) }
+{ n_maximum(f_distance(f_primitive_unary(x,0),f_primitive_unary(x,0))) > 0 ∧ n_maximum(f_distance(f_restrict_unary(f_primitive_unary(x,0),c_primitive(is_p,0)),f_restrict_unary(f_primitive_unary(x,0),c_primitive(is_t,0)))) > 0 ∧ ¬b_nullary(free) }  ⇒  { b_nullary(free) ∧ ↓n_maximum(f_distance(f_restrict_unary(f_primitive_unary(x,0),c_primitive(is_p,0)),f_restrict_unary(f_primitive_unary(x,0),c_primitive(is_t,0)))) ∧ ↓n_maximum(f_distance(f_primitive_unary(x,0),f_primitive_unary(x,0))) ∧ ↓n_sum_frame(f_primitive_unary(x,0)) }
+{ n_maximum(f_distance(f_primitive_unary(x,0),f_primitive_unary(x,0))) > 0 ∧ n_maximum(f_distance(f_restrict_unary(f_primitive_unary(x,0),c_primitive(is_p,0)),f_restrict_unary(f_primitive_unary(x,0),c_primitive(is_t,0)))) > 0 ∧ ¬b_nullary(free) }  ⇒  { b_nullary(free) ∧ ↓n_sum_frame(f_primitive_unary(x,0)) }
+{ n_maximum(f_distance(f_primitive_unary(x,0),f_primitive_unary(x,0))) > 0 ∧ n_maximum(f_distance(f_restrict_unary(f_primitive_unary(x,0),c_primitive(is_p,0)),f_restrict_unary(f_primitive_unary(x,0),c_primitive(is_t,0)))) > 0 ∧ ¬b_nullary(free) }  ⇒  { ↓n_sum_frame(f_primitive_unary(x,0)) }
+2026-04-28 17:34:58,640 INFO     Total wall time: 519.35s
+2026-04-28 17:34:58,640 INFO     Best policy solver CPU time: 16.65s
+2026-04-28 17:34:58,640 INFO     Best policy solver wall time: 10.37s
+2026-04-28 17:34:58,640 INFO     Total solver CPU time: 19.41s
+2026-04-28 17:34:58,640 INFO     Total CPU time: 525.20s
+2026-04-28 17:34:58,640 INFO     Total memory usage: 466.60MB

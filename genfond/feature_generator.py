@@ -49,7 +49,7 @@ def construct_vocabulary_info(domain: Domain, config: Mapping) -> VocabularyInfo
         vocabulary.add_predicate(predicate.name, predicate.arity)
         vocabulary.add_predicate(f"{predicate.name}_G", predicate.arity)
     for function in domain.functions:
-        # TODO some functions may be static?
+        # TODO some functions may be static. ????
         vocabulary.add_function(function.name, function.arity)
         vocabulary.add_function(f"{function.name}_G", function.arity)
     max_arity = max([len(action.parameters) for action in domain.actions])
@@ -178,7 +178,7 @@ class FeaturePool:
                 self.problem_name_to_id[problem.name],
                 config,
             )
-            if (config["problem_type"] == "FOND"):
+            if (config["generate_space_by_state"]):
                 self.state_graphs[problem.name] = generate_state_space(
                     domain,
                     problem,
@@ -190,6 +190,7 @@ class FeaturePool:
                     self.comparison_graphs[problem.name],
                     selected_states=(selected_states.get(problem.name, None) if selected_states else None),
                 )
+            #log.info(f"finished generating state space for problem {problem.name}: ")  
             self.instances[problem.name] = instance
             self.mappings[problem.name] = mapping
             for node in self.state_graphs[problem.name].nodes.values():
@@ -210,10 +211,19 @@ class FeaturePool:
                 feature_generator_kwargs = config["unrestricted_feature_generator"]
             else:
                 feature_generator_kwargs = config["feature_generator"]
+            #print(".")
+            #print(".")
+            #print(".")
+            #print(self.states)
+            #print(list(self.states.values()))
+            #max_complexity = 5
+
+
+            #log.info(f"starting feature generation with max complexity {max_complexity}...")  
             booleans, numericals, concepts, roles, frames_unary, frames_binary = dlplan_gen.generate_features(
                 factory,
                 list(self.states.values()),
-                * (6 * [max_complexity]), #5* +1 for frames complexity
+                * (6 * [max_complexity]), #5* to 6* for frames complexity
                 3600,
                 10000,
                 **feature_generator_kwargs,
@@ -231,6 +241,15 @@ class FeaturePool:
             self.concepts = {str(concept): concept for concept in concepts}
         if config["include_roles"]:
             self.roles = {str(role): role for role in roles}
+        #print("frames_unary:  ", frames_unary)
+        #print("frames_binary:  ", frames_binary)
+        ##print("concept:  ", concepts)
+        #print("roles:  ", roles)
+        #print("booleans:  ", booleans)
+        #print("numericals:  ", numericals)
+        #print(self.features)
+        
+        #log.info(f"finished feature generation: {len(self.concepts)} concepts, {len(self.roles)} roles, ")
         log.debug(f'generated concepts: {", ".join(self.concepts.keys())}')
         log.debug(f'generated roles: {", ".join(self.roles.keys())}')
         log.debug(f'generated features: {", ".join(self.features.keys())}')
@@ -460,7 +479,16 @@ class FeaturePool:
                         stats["num_skipped_feature_evals"] += 1
                         continue
                     feature_str = f'"{feature_str}"'
-                    eval = self.norm_eval(feature.evaluate(self.states[aug_state]))
+                    eval = feature.evaluate(self.states[aug_state])
+                    if type(eval) is bool:
+                        eval = 1 if eval else 0
+                    elif eval.is_integer():
+                        eval = int(eval)
+                    elif type(eval) is float:
+                        if math.isinf(eval): 
+                            eval = int(1e9)
+                        else:
+                            eval = int(round(float(eval)*100))
                     clingo_program += f"eval({aug_state_id}, {feature_str}, {eval}).\n"
                     stats["num_feature_evals"] += 1
         if self.config["include_pristine_states"]:
@@ -469,7 +497,14 @@ class FeaturePool:
                     stats["num_skipped_feature_evals"] += 1
                     continue
                 feature_str = f'"{feature_str}"'
-                eval = self.norm_eval(feature.evaluate(self.states[self.node_id_to_state_ids[(problem_id, node.id)]]))
+                eval = feature.evaluate(self.states[self.node_id_to_state_ids[(problem_id, node.id)]])
+                if isinstance(feature, Boolean):
+                    eval = 1 if eval else 0
+                elif not (eval == sys.float_info.max) and isinstance(eval, (int, float)):
+                    eval = int(round(float(eval)*100))
+                else:
+                    eval = '"inf"'
+                    #print("inf feature")
                 clingo_program += f"eval({problem_id}, {node.id}, {feature_str}, {eval}).\n"
                 stats["num_feature_evals"] += 1
         if self.config["include_action_params"]:
@@ -485,7 +520,17 @@ class FeaturePool:
                         if not get_aparam_predicate_name(0) in feature_str:
                             continue
                         feature_str = f'"{feature_str}"'
-                        eval = self.norm_eval(feature.evaluate(self.states[aug_state]))
+                        eval = feature.evaluate(self.states[aug_state])
+                        if type(eval) is bool:
+                            eval = 1 if eval else 0
+                        elif eval.is_integer():
+                            eval = int(eval)
+                        elif type(eval) is float:
+                            if math.isinf(eval): 
+                                eval = int(1e9)
+                            else:
+                                eval = int(round(float(eval)*100))
+                        # else inf??
                         clingo_program += f"aug_eval({aug_state_id}, {feature_str}, {eval}).\n"
                         stats["num_feature_evals"] += 1
         all_action_args = {str(p) for action in node.children.keys() for p in action.parameters}
@@ -527,21 +572,9 @@ class FeaturePool:
                     params = [f'"{p}"' for p in action.parameters]
                     for i, p in enumerate(params):
                         clingo_program += f"aparam({action_str}, {i}, {p}).\n"
-                if (self.config["problem_type"] == "QNP"):
-                    clingo_program += self.get_trans_delta(problem_id, problem.name, node, child, action)
+                #if node.id != child.id: # TODO add condition that we are in QNP solver
+                clingo_program += self.get_trans_delta(problem_id, problem.name, node, child, action)
         return clingo_program
-
-    def norm_eval(self, val):
-        if type(val) is bool:
-            return 1 if val else 0
-        elif val.is_integer():
-            return int(val)
-        elif type(val) is float:
-            if math.isinf(val): 
-                return int(1e9)
-            else:
-                return int(round(float(val)*100))
-        return val
 
     def get_trans_delta(self, problem_id, problem_name, node, child, action):
         # compute comparison accurate child
@@ -589,6 +622,7 @@ class FeaturePool:
         }
         clingo_program = ""
         for feature_str, feature in self.features.items():
+            #print(feature_str)
             feature_str = f'"{feature_str}"'
             clingo_program += f"feature({feature_str}).\n"
             clingo_program += f"feature_complexity({feature_str}, {feature.compute_complexity()}).\n"
@@ -608,4 +642,7 @@ class FeaturePool:
             f'{stats["num_concept_evals"]} concept evaluations ({stats["num_skipped_concept_evals"]} skipped), '
             f'and {stats["num_role_evals"]} role evaluations ({stats["num_skipped_role_evals"]} skipped)'
         )
+        #print("_____________________________")
+        #print(clingo_program)
+        #print("_____________________________")
         return clingo_program
