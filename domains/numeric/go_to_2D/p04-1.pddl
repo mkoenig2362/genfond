@@ -1,0 +1,36 @@
+(define (problem p04-1)
+  (:domain got_to)
+
+  (:objects ROBOT1 ROBOT2 ROBOT3 ROBOT4 - robot TARGET - target)
+
+  (:init
+    (is_robot ROBOT1)
+    (is_robot ROBOT2)
+    (is_robot ROBOT3)
+    (is_robot ROBOT4)
+    (is_target TARGET)
+    (= (x ROBOT1) 2.489)
+    (= (y ROBOT1) 1.507)
+    (= (x ROBOT2) 2.149)
+    (= (y ROBOT2) 4.632)
+    (= (x ROBOT3) 0.561)
+    (= (y ROBOT3) 0.440)
+    (= (x ROBOT4) 0.798)
+    (= (y ROBOT4) 0.251)
+    (= (x TARGET) 3.225)
+    (= (y TARGET) 2.597)
+  )
+
+  (:goal
+    (and
+      (= (x ROBOT1) (x TARGET))
+      (= (y ROBOT1) (y TARGET))
+      (= (x ROBOT2) (x TARGET))
+      (= (y ROBOT2) (y TARGET))
+      (= (x ROBOT3) (x TARGET))
+      (= (y ROBOT3) (y TARGET))
+      (= (x ROBOT4) (x TARGET))
+      (= (y ROBOT4) (y TARGET))
+    )
+  )
+)

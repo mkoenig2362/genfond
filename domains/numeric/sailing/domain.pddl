@@ -1,8 +1,8 @@
 (define (domain sailing)
-    (:requirements :strips :typing :numeric-fluents :quantified-preconditions)
+    (:requirements :strips :typing :numeric-fluents :equality)
     (:types boat person - floats)
-    (:predicates (saved ?p - floats) (is_b ?b - boat) (is_p ?p - person))
-    (:functions (x ?b - floats))
+    (:predicates (saved ?p - person) (is_b ?b - boat) (is_p ?p - person))
+    (:functions (x ?f - floats))
     (:action up
         :parameters (?b - boat)
         :precondition (and )

@@ -3,9 +3,9 @@ import random
 from pathlib import Path
 
 
-def fmt_num(value: int) -> str:
-    """Format integer numeric values as PDDL floats, e.g. 4 -> 4.0."""
-    return f"{float(value):.1f}"
+def fmt_num(value: float) -> str:
+    """Format numeric values as PDDL floats, e.g. 4 -> 4.0."""
+    return f"{float(value):.3f}".rstrip("0").rstrip(".") + (".0" if "." not in f"{float(value):.3f}".rstrip("0").rstrip(".") else "")
 
 
 def fire_names(num_fires: int) -> list[str]:
@@ -26,7 +26,7 @@ def choose_burning_values(
         return [max(min_burning, max_burning - i) for i in range(num_fires)]
 
     if mode == "random":
-        return [rng.randint(min_burning, max_burning) for _ in range(num_fires)]
+        return [rng.uniform(min_burning, max_burning) for _ in range(num_fires)]
 
     raise ValueError(f"unknown burning mode: {mode}")
 
@@ -37,8 +37,6 @@ def generate_problem(
     min_burning: int,
     max_burning: int,
     burning_mode: str,
-    initial_location: str,
-    initial_carrying: int,
     rng: random.Random,
 ) -> str:
     fires = fire_names(num_fires)
@@ -53,21 +51,22 @@ def generate_problem(
     objects = []
     objects.extend(f"    {f} - fire" for f in fires)
     objects.append("    R - river")
+    objects.append("    D - drone")
 
     init_lines = []
     for f, burning in zip(fires, burning_values):
         init_lines.append(f"(= (burning {f}) {fmt_num(burning)})")
 
-    init_lines.append(f"(= (carrying) {fmt_num(initial_carrying)})")
+    initial_carrying=rng.uniform(0, 5)
+    init_lines.append(f"(= (carrying D) {fmt_num(initial_carrying)})")
 
-    if initial_location == "river":
+    if rng.random() < 0.5:
+        # Start at river
         init_lines.append("(at R)")
-    elif initial_location == "first-fire":
-        init_lines.append("(at F1)")
-    elif initial_location == "random-fire":
-        init_lines.append(f"(at {rng.choice(fires)})")
+        init_lines.append("(atRiver)")
     else:
-        raise ValueError(f"unknown initial location: {initial_location}")
+        # Start at a random fire
+        init_lines.append(f"(at {rng.choice(fires)})")
 
     # The domain uses (same ?f ?l) under a negation to prevent fly-to-fire(F1,F1).
     # Add only reflexive fire facts, so (not (same F1 R)) and (not (same F1 F2)) remain true.
@@ -99,7 +98,7 @@ def generate_problem(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate waterdrone PDDL problems.")
-    parser.add_argument("--base-name", type=str, default="waterdrone")
+    parser.add_argument("--base-name", type=str, default="p")
     parser.add_argument("--min-num-fires", type=int, default=1)
     parser.add_argument("--max-num-fires", type=int, default=10)
     parser.add_argument("-r", "--repetitions", type=int, default=1)
@@ -113,13 +112,6 @@ def main() -> None:
         choices=["random", "increasing", "decreasing"],
         default="random",
     )
-    parser.add_argument(
-        "--initial-location",
-        choices=["river", "first-fire", "random-fire"],
-        default="river",
-    )
-    parser.add_argument("--initial-carrying", type=int, default=0)
-
     args = parser.parse_args()
 
     if args.min_num_fires < 1:
@@ -130,29 +122,24 @@ def main() -> None:
         raise ValueError("--min-burning must be non-negative")
     if args.max_burning < args.min_burning:
         raise ValueError("--max-burning must be >= --min-burning")
-    if args.initial_carrying < 0:
-        raise ValueError("--initial-carrying must be non-negative")
 
     rng = random.Random(args.seed)
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    counter = 1
     for num_fires in range(args.min_num_fires, args.max_num_fires + 1):
-        for _ in range(args.repetitions):
-            problem_name = f"{args.base_name}-{counter}"
+        for repetition in range(1, args.repetitions + 1):
+            # p02-1 means: first generated problem with two fires.
+            problem_name = f"{args.base_name}{num_fires:02}-{repetition}"
             text = generate_problem(
                 problem_name=problem_name,
                 num_fires=num_fires,
                 min_burning=args.min_burning,
                 max_burning=args.max_burning,
                 burning_mode=args.burning_mode,
-                initial_location=args.initial_location,
-                initial_carrying=args.initial_carrying,
                 rng=rng,
             )
-            (out_dir / f"p{counter:02}.pddl").write_text(text, encoding="utf-8")
-            counter += 1
+            (out_dir / f"{problem_name}.pddl").write_text(text, encoding="utf-8")
 
 
 if __name__ == "__main__":

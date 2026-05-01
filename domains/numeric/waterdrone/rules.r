@@ -1,13 +1,14 @@
-2026-04-28 20:02:19,460 INFO     Policy solves 50 out of 50 problems, unsolved:
-2026-04-28 20:02:19,460 INFO     Final policy: 4 rules, 0 transition constraints, 0 state constraints with 2 features: n_sum_frame(f_primitive_unary(burning,0)), n_sum_frame(f_restrict_unary(f_primitive_unary(burning,0),c_not(c_primitive(at,0))))
+2026-05-01 12:08:15,872 INFO     Policy solves 3 out of 3 problems, unsolved:
+2026-05-01 12:08:15,872 INFO     Final policy: 5 rules, 0 transition constraints, 0 state constraints with 3 features: b_nullary(atRiver), n_minimum(f_primitive_unary(carrying,0)), n_sum_frame(f_primitive_unary(burning,0))
 Rules:
-{ n_sum_frame(f_primitive_unary(burning,0)) > 0 }  ⇒  { ↑n_sum_frame(f_restrict_unary(f_primitive_unary(burning,0),c_not(c_primitive(at,0)))) }
-{ n_sum_frame(f_primitive_unary(burning,0)) > 0 }  ⇒  { ↓n_sum_frame(f_primitive_unary(burning,0)) }
-{ n_sum_frame(f_primitive_unary(burning,0)) > 0 ∧ n_sum_frame(f_restrict_unary(f_primitive_unary(burning,0),c_not(c_primitive(at,0)))) > 0 }  ⇒  {  }
-{ n_sum_frame(f_primitive_unary(burning,0)) > 0 ∧ n_sum_frame(f_restrict_unary(f_primitive_unary(burning,0),c_not(c_primitive(at,0)))) > 0 }  ⇒  { ↓n_sum_frame(f_restrict_unary(f_primitive_unary(burning,0),c_not(c_primitive(at,0)))) }
-2026-04-28 20:02:19,460 INFO     Total wall time: 2673.76s
-2026-04-28 20:02:19,460 INFO     Best policy solver CPU time: 0.38s
-2026-04-28 20:02:19,460 INFO     Best policy solver wall time: 0.31s
-2026-04-28 20:02:19,460 INFO     Total solver CPU time: 0.48s
-2026-04-28 20:02:19,460 INFO     Total CPU time: 2673.10s
-2026-04-28 20:02:19,460 INFO     Total memory usage: 85.31MB
+{ b_nullary(atRiver) ∧ n_minimum(f_primitive_unary(carrying,0)) = 0 ∧ n_sum_frame(f_primitive_unary(burning,0)) > 0 }  ⇒  { ↑n_minimum(f_primitive_unary(carrying,0)) }
+{ b_nullary(atRiver) ∧ n_minimum(f_primitive_unary(carrying,0)) > 0 ∧ n_sum_frame(f_primitive_unary(burning,0)) > 0 }  ⇒  { ¬b_nullary(atRiver) }
+{ n_minimum(f_primitive_unary(carrying,0)) = 0 ∧ n_sum_frame(f_primitive_unary(burning,0)) > 0 ∧ ¬b_nullary(atRiver) }  ⇒  { b_nullary(atRiver) }
+{ n_minimum(f_primitive_unary(carrying,0)) > 0 ∧ n_sum_frame(f_primitive_unary(burning,0)) > 0 ∧ ¬b_nullary(atRiver) }  ⇒  {  }
+{ n_minimum(f_primitive_unary(carrying,0)) > 0 ∧ n_sum_frame(f_primitive_unary(burning,0)) > 0 ∧ ¬b_nullary(atRiver) }  ⇒  { ↓n_minimum(f_primitive_unary(carrying,0)) ∧ ↓n_sum_frame(f_primitive_unary(burning,0)) }
+2026-05-01 12:08:15,872 INFO     Total wall time: 13.35s
+2026-05-01 12:08:15,872 INFO     Best policy solver CPU time: 0.20s
+2026-05-01 12:08:15,872 INFO     Best policy solver wall time: 0.12s
+2026-05-01 12:08:15,872 INFO     Total solver CPU time: 0.29s
+2026-05-01 12:08:15,872 INFO     Total CPU time: 13.39s
+2026-05-01 12:08:15,872 INFO     Total memory usage: 85.62MB

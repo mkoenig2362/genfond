@@ -1,0 +1,31 @@
+(define (problem p02-5)
+  (:domain delivery)
+
+  (:objects p1 p2 - package g - gripper t - target)
+
+  (:init
+    (= (x p1) 4.961)
+    (= (y p1) 8.876)
+    (= (x p2) 8.150)
+    (= (y p2) 8.176)
+    (= (x t) 0.000)
+    (= (y t) 0.000)
+    (= (x g) 6.255)
+    (= (y g) 9.664)
+    (is_p p1)
+    (is_p p2)
+    (is_g g)
+    (is_t t)
+    (free)
+  )
+
+  (:goal (and
+    (= (x p1) (x t))
+    (= (y p1) (y t))
+    (= (x p2) (x t))
+    (= (y p2) (y t))
+    (free)
+    (not (holding p1))
+    (not (holding p2))
+  ))
+)
