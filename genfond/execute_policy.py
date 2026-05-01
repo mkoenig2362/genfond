@@ -4,7 +4,7 @@ from .execute_datalog_policy import execute_datalog_policy
 from .execute_rule_policy import execute_rule_policy
 
 
-def execute_policy(domain, problem, policy, config=None):
+def execute_policy(domain, problem, policy, config=None, constant_values=None):
     if isinstance(policy, DatalogPolicy):
         if not config:
             config = ConfigHandler(type="datalog")
@@ -12,5 +12,5 @@ def execute_policy(domain, problem, policy, config=None):
     else:
         if not config:
             config = ConfigHandler()
-        return execute_rule_policy(domain, problem, policy, config)
+        return execute_rule_policy(domain, problem, policy, config, constant_values)
         

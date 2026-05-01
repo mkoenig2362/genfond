@@ -149,7 +149,7 @@ def state_string(state: State) -> str:
     return ",".join([str(p) for p in state])
 
 
-def execute_rule_policy(domain: Domain, problem: Problem, policy: Policy, config: dict) -> list[str]:
+def execute_rule_policy(domain: Domain, problem: Problem, policy: Policy, config: dict, constant_values=None) -> list[str]:
     if not policy: # TODO is initial == goal?
         raise RuntimeError("Goal not reached!")
     log.info(
@@ -208,7 +208,7 @@ def execute_rule_policy(domain: Domain, problem: Problem, policy: Policy, config
         for action in sorted(grounded_actions, key=lambda _: random.random()):
             if not check_formula(state, action.precondition):
                 continue
-            succs = apply_action_effects(state, action)
+            succs = apply_action_effects(state, action, constant_values)
             log.debug(
                 "Action {} has {} successors: {}".format(
                     action_string(action),

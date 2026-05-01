@@ -24,6 +24,7 @@ from .state_space_generator import (
     generate_state_space,
 )
 from .comparison_state_space_generator import ComparisonStateGraph, generate_state_space_from_comparison_graph
+from .comparison_function_sets import get_numericvalues_from_actions, get_numericvalues_from_goal
 
 Feature = Boolean | Numerical
 
@@ -448,7 +449,7 @@ class FeaturePool:
         log.debug(", ".join(uninformative_features))
         return uninformative_features
 
-    def node_to_clingo(self, problem: Problem, node: StateSpaceNode, stats: dict) -> str:
+    def node_to_clingo(self, problem: Problem, node: StateSpaceNode, stats: dict, constant_values: set) -> str:
         problem_id = self.problem_name_to_id[problem.name]
         clingo_program = "%"
         for p in node.state:
@@ -573,13 +574,13 @@ class FeaturePool:
                     for i, p in enumerate(params):
                         clingo_program += f"aparam({action_str}, {i}, {p}).\n"
                 #if node.id != child.id: # TODO add condition that we are in QNP solver
-                clingo_program += self.get_trans_delta(problem_id, problem.name, node, child, action)
+                clingo_program += self.get_trans_delta(problem_id, problem.name, node, child, action, constant_values)
         return clingo_program
 
-    def get_trans_delta(self, problem_id, problem_name, node, child, action):
+    def get_trans_delta(self, problem_id, problem_name, node, child, action, constant_values):
         # compute comparison accurate child
         trans_deltas = ""
-        dummy_child_state = next(iter(apply_effects_to_state(node.state, action.effect)))
+        dummy_child_state = next(iter(apply_effects_to_state(node.state, action.effect, constant_values)))
         real_child_state = self.comparison_graphs[problem_name].get_comparison_child_state(node, child.id, dummy_child_state, action)
         real_child_state_augmented = get_goal_augmented_state(self.problems[problem_name], real_child_state)
         dlplan_child_state = dlplan.core.State(-1,
@@ -621,6 +622,7 @@ class FeaturePool:
             "uninformative_roles": (self.compute_uninformative_roles() if self.config["prune_roles"] else set()),
         }
         clingo_program = ""
+        constant_values = get_numericvalues_from_actions(self.domain)
         for feature_str, feature in self.features.items():
             #print(feature_str)
             feature_str = f'"{feature_str}"'
@@ -635,8 +637,9 @@ class FeaturePool:
             clingo_program += f"role({role_str}).\n"
             clingo_program += f"role_complexity({role_str}, {role.compute_complexity()}).\n"
         for state_graph in self.state_graphs.values():
+            goal_values = get_numericvalues_from_goal(state_graph.problem)
             for node in state_graph.nodes.values():
-                clingo_program += self.node_to_clingo(state_graph.problem, node, stats)
+                clingo_program += self.node_to_clingo(state_graph.problem, node, stats, sorted(constant_values | goal_values))
         log.info(
             f'Generated program with {stats["num_feature_evals"]} feature evaluations ({stats["num_skipped_feature_evals"]} skipped), '
             f'{stats["num_concept_evals"]} concept evaluations ({stats["num_skipped_concept_evals"]} skipped), '

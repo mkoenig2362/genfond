@@ -19,6 +19,7 @@ from .problem_iterator import MAX_COST, ProblemIterator, Result
 from .rule_policy import Policy
 from .solver import Solver
 from .state_space_generator import State, check_formula, random_walk
+from .comparison_function_sets import get_numericvalues_from_goal
 
 log = logging.getLogger("genfond.iterative_solver")
 
@@ -110,7 +111,7 @@ def pnames(problems: Collection[Problem]) -> str:
 
 
 def solve_iteratively(
-    domain: Domain, problems: list[Problem], config: Mapping
+    domain: Domain, problems: list[Problem], config: Mapping, constant_values: set = None
 ) -> tuple[Optional[Policy | DatalogPolicy], list[Problem], dict[str, str | int | float]]:
     policy = None
     problems.sort(key=lambda p: len(p.objects))
@@ -210,11 +211,12 @@ def solve_iteratively(
             with logging_redirect_tqdm():
                 for problem in tqdm.tqdm(problems, disable=None):
                     log.info(f'Testing policy on {problem.name} {config["policy_iterations"]} times ...')
+                    goal_values = get_numericvalues_from_goal(problem)
                     plans = []
                     solved = True
                     for _ in range(config["policy_iterations"]):
                         try:
-                            plan = execute_policy(domain, problem, policy, config)
+                            plan = execute_policy(domain, problem, policy, config, sorted(constant_values | goal_values))
                             plans.append(plan)
                         except NoActionError as e:
                             log.info(f"Policy does not solve {problem.name}, no action in reachable state")

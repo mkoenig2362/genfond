@@ -114,7 +114,7 @@ DEFAULT_CONFIG = {
         "generate_restrict_frame_binary": False,
         "generate_distance_frame": True,
         "generate_minimum_numerical": True,
-        "generate_maximum_numerical": False,
+        "generate_maximum_numerical": True,
         "generate_sum_frame_numerical": True,
     },
     "log": {

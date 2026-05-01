@@ -37,98 +37,12 @@ from pddl.logic.predicates import EqualTo
 
 from genfond.ground import ground, ground_domain_predicates, ground_domain_functions
 from genfond.state_space_generator import State, StateSpaceNode, Alive, StateSpaceGraph
+from genfond.comparison_function_sets import FunctionSet, classify_static_fluents
 from collections import defaultdict
 from typing import Iterable, Dict, Set, Tuple, Optional
 
 
 log = logging.getLogger("genfond.backwards_state_space_generator")
-
-#-------- class handeling ordering and equality for one set of functions --------
-class FunctionSet:
-    def __init__(self, related: set):
-        self.funcs = related
-        self.values = [] # TODO remove because irrelevant? 
-
-        self.ordering = [] # 0 < b < 1 < a < 10
-        self.represent = dict() # b = {c}, 1 = {e, f}
-    
-    def __str__(self):
-        def _pretty(obj):
-            txt = str(obj)
-            if "(" in txt:
-                head, tail = txt.split("(", 1)
-                return head.lower() + "(" + tail
-            return txt.lower()
-        parts = []
-        for o in self.ordering: # get all < with all equalities involved
-            if o in self.represent:
-                parts.append(" = ".join(_pretty(s) for s in ([o] + list(self.represent[o]))))
-            else:
-                parts.append(_pretty(o))
-        line = " < ".join(parts)
-        for r in self.represent:
-            if r not in self.ordering:
-                line += ", " + " = ".join(_pretty(s) for s in ([r] + list(self.represent[r])))
-        return line
-
-    def _has(self, function):
-        return (function in self.funcs)
-
-    def _considers(self, value):
-        return (value in self.values)
-
-    def equals(self, other):
-        if str(self) == str(other):
-            return True
-        if len(other.ordering) != len(self.ordering):
-            return False
-        for i, o in enumerate(other.ordering):
-            s = self.ordering[i]
-            if o in other.represent.keys():
-                if s not in self.represent.keys():
-                    return False
-                if ({o}|other.represent[o]) != ({s}|self.represent[s]):
-                    return False
-            else:
-                if s != o:
-                    return False
-        for r in other.represent: 
-            found_equal = False
-            for s in self.represent:
-                if ({r}|other.represent[r]) == ({s}|self.represent[s]):
-                    found_equal = True
-            if not found_equal:
-                return False
-        return True
-    
-    def _less_than(self, o1, o2) -> bool: # o1 < o2, 0=no,1=yes,2=possible
-        if isinstance(o1, NumericValue):
-            o1 = int(o1.value)
-        if isinstance(o2, NumericValue):
-            o2 = int(o2.value)
-        found_o1 = False
-        for o in self.ordering:
-            if not found_o1:
-                if o1 == o or (o in self.represent and o1 in self.represent[o]):
-                    found_o1 = True
-            else:
-                if o2 == o or (o in self.represent and o2 in self.represent[o]):
-                    return True
-        return False
-
-    def _equal(self, o1, o2) -> bool:
-        if isinstance(o1, NumericValue):
-            o1 = int(o1.value)
-        if isinstance(o2, NumericValue):
-            o2 = int(o2.value)
-        if o1 in self.represent:
-            return (o2 in self.represent[o1])
-        if o2 in self.represent:
-            return (o1 in self.represent[o2])
-        for r, reps in self.represent.items():
-            if o1 in reps and o2 in reps:
-                return True
-        return False
 
 #-------- class representing one Comparison Node --------
 class ComparisonNode:
@@ -295,26 +209,25 @@ class ComparisonStateGraph:
                 else: # one of them is a value
                     if isinstance(f.operands[0], NumericFunction) and isinstance(f.operands[1], NumericValue):
                         func = f.operands[0]
-                        value = int(f.operands[1].value)
+                        value = float(f.operands[1].value)
                     elif isinstance(f.operands[0], NumericValue) and isinstance(f.operands[1], NumericFunction):
                         func = f.operands[1]
-                        value = int(f.operands[0].value)
+                        value = float(f.operands[0].value)
                     for i, s in enumerate(function_sets):
                         if func in s:
                             index_set = i
                     function_sets[index_set].add(value)
         for related in function_sets:
             #get all numbers sorted out:
-            nums_important_sorted = sorted(int(item) for item in related if isinstance(item, numbers.Number))
-            nums_remove_later = [
-                (fct, int(equalities[fct]))              # keep both pieces of info
+            nums_important_sorted = {float(item) for item in related if isinstance(item, numbers.Number)}
+            nums_remove_later = {
+                (fct, float(equalities[fct]))              # keep both pieces of info
                 for fct in related
                 if fct in equalities
-                and int(equalities[fct]) not in nums_important_sorted
-            ]
+                and float(equalities[fct]) not in nums_important_sorted
+            }
             nums_sorted = sorted(
-                nums_important_sorted +
-                [num for _, num in nums_remove_later]
+                nums_important_sorted | {num for _, num in nums_remove_later}
             )
             related.difference_update(nums_sorted)
             # now build the FunctionSet
@@ -323,7 +236,7 @@ class ComparisonStateGraph:
             new_set.values = nums_sorted
             for r in related:
                 if r in equalities.keys():
-                    r_value = int(equalities[r])
+                    r_value = float(equalities[r])
                 else:
                     r_value = 0
                 if r_value not in new_set.represent:
@@ -337,7 +250,7 @@ class ComparisonStateGraph:
                             new_set.ordering.insert(new_set.ordering.index(v), r_value)
                             inserted = True
                     if not inserted:
-                        new_set.ordering.append(r_value) 
+                        new_set.ordering.append(r_value)
             # remove all useless numbers
             static_preds, static_fcts = classify_static_fluents(self.domain, self.problem)
             for fct, num in nums_remove_later:
@@ -692,54 +605,6 @@ def compute_alive(nodes: Collection[ComparisonNode]) -> None:
     for node in nodes:
         if node.alive == Alive.UNKNOWN:
             node.alive = Alive.ALIVE
-
-
-
-def _collect_dynamic_symbols(domain: Domain, problem: Problem):
-    """
-    Return two *sets*:
-        dyn_predicates … every predicate symbol that is added/deleted
-        dyn_functions  … every function symbol that is assigned/increased/…
-    """
-    dyn_predicates = set()
-    dyn_functions = set()
-    for action in ground(domain, problem):
-        if isinstance(action.effect, And):
-            effects = action.effect.operands
-        else:
-            effects = [action.effect]
-        for eff in effects:
-            if isinstance(eff, Predicate):
-                dyn_predicates.add(eff)
-            elif isinstance(eff, Not):
-                dyn_predicates.add(eff.argument)
-            elif isinstance(eff, (Increase, Decrease, Assign, Plus, Minus)):
-                for o in eff.operands:
-                    if isinstance(o, NumericFunction):
-                        dyn_functions.add(o)
-            elif isinstance(eff, Assign):
-                dyn_functions.add(eff.operands[0])
-    return dyn_predicates, dyn_functions
-
-def classify_static_fluents(domain: Domain, problem: Problem):
-    """
-    Return a dict  ground_fluent -> is_static  (bool)    Return a dict  ground_fluent -> is_static  (bool)
-    where ground_fluent is either an Atom (predicate) or a NumericFunction.
-    """
-    ground_preds = ground_domain_predicates(domain, problem)
-    ground_funcs = ground_domain_functions(domain, problem)
-    dyn_preds_sym, dyn_funcs_sym = _collect_dynamic_symbols(domain, problem)
-    result_preds, result_funcs = [], []
-    for p in ground_preds:
-        if p not in dyn_preds_sym:
-            result_preds.append(p)
-    for f in ground_funcs:
-        if f not in dyn_funcs_sym:
-            result_funcs.append(f)
-    return result_preds, result_funcs
-
-
-
 
 
 def non_valid_values(node: ComparisonNode, value: int) -> bool:

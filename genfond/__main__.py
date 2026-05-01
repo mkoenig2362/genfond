@@ -18,6 +18,7 @@ from genfond.execute_policy import execute_policy
 
 from .iterative_solver import pnames, solve, solve_iteratively
 from .problem_iterator import MAX_COST
+from .comparison_function_sets import get_numericvalues_from_actions, get_numericvalues_from_goal
 
 log = logging.getLogger("genfond")
 
@@ -106,6 +107,8 @@ def main():
     total_cpu_time_start = time.process_time()
     log.info("Parsing domain ...")
     domain = pddl.parse_domain(args.domain_file)
+    #TODO maybe find a better place to put this code
+    constant_values = get_numericvalues_from_actions(domain)
     log.info("Parsing problems ...")
     problems = []
     for f in tqdm.tqdm(args.problem_file, disable=None):
@@ -146,7 +149,7 @@ def main():
             with open(args.output, "wb") as f:
                 pickle.dump(policy, f)
         sys.exit(0)
-    policy, succs, solve_stats = solve_iteratively(domain, problems, config)
+    policy, succs, solve_stats = solve_iteratively(domain, problems, config, constant_values)
     stats.update(solve_stats)
     if args.output:
         with open(args.output, "wb") as f:
@@ -154,9 +157,10 @@ def main():
     log.info("Verifying policy ...")
     with logging_redirect_tqdm():
         for problem in tqdm.tqdm([p for p in problems if p not in succs], disable=None):
+            goal_values = get_numericvalues_from_goal(problem)
             try:
                 for _ in tqdm.trange(config["policy_iterations"], leave=False, disable=None):
-                    execute_policy(domain, problem, policy, config)
+                    execute_policy(domain, problem, policy, config, sorted(constant_values | goal_values))
                 succs.append(problem)
             except RuntimeError:
                 log.error("Policy does not solve {}".format(problem.name))

@@ -34,6 +34,8 @@ from pddl.logic.functions import (
 from pddl.logic.predicates import EqualTo
 
 from .ground import ground
+import numbers
+import random
 
 log = logging.getLogger("genfond.state_space_generator")
 
@@ -97,30 +99,30 @@ def check_formula(state: State, formula: Formula) -> bool:
         raise ValueError("Unknown formula type: {}".format(type(formula)))
 
 
-def apply_action_effects(state: State, action: Action) -> set[State]:
-    return apply_effects(frozenset({state}), action.effect)
+def apply_action_effects(state: State, action: Action, constant_values=None) -> set[State]:
+    return apply_effects(frozenset({state}), action.effect, constant_values)
 
 
-def apply_effects(states: Collection[State], effects: Collection[Optional[Formula]]) -> set[State]:
+def apply_effects(states: Collection[State], effects: Collection[Optional[Formula]], constant_values=None) -> set[State]:
     new_states: set[State] = set()
     for state in states:
-        new_states |= apply_effects_to_state(state, effects)
+        new_states |= apply_effects_to_state(state, effects, constant_values)
         assert all(isinstance(s, Collection) for s in new_states)
         assert all(all(isinstance(f, (Predicate, FunctionEqualTo)) for f in s) for s in new_states)
     return new_states
 
 
-def apply_effects_to_state(state: State, effects: Collection[Optional[Formula]]) -> set[State]:
+def apply_effects_to_state(state: State, effects: Collection[Optional[Formula]], constant_values=None) -> set[State]:
     assert all(isinstance(f, (Predicate, FunctionEqualTo)) for f in state)
     if isinstance(effects, Collection):
         states = {state}
         for effect in effects:
-            states = apply_effects(states, effect)
+            states = apply_effects(states, effect, constant_values)
         return states
     elif isinstance(effects, And) or isinstance(effects, And):
         states = {state}
         for effect in effects.operands:
-            states = apply_effects(states, effect)
+            states = apply_effects(states, effect, constant_values)
         return set(states)
     elif isinstance(effects, Predicate):
         return set({state | {effects}})
@@ -128,7 +130,7 @@ def apply_effects_to_state(state: State, effects: Collection[Optional[Formula]])
         return set({frozenset([f for f in state if f != effects.argument])})
     elif isinstance(effects, When):
         if check_formula(state, effects.condition):
-            return apply_effects({state}, effects.effect)
+            return apply_effects({state}, effects.effect, constant_values)
         else:
             return set({state})
     elif isinstance(effects, BinaryFunction):
@@ -152,8 +154,28 @@ def apply_effects_to_state(state: State, effects: Collection[Optional[Formula]])
         if isinstance(effects, Assign):
             new_value = change
         elif isinstance(effects, Increase):
+            next_value = get_next_greater_value(fct=fct, current_value=current_value, state=state, constant_values=constant_values)
+            epsilon = 0.1 #1e-9
+            if next_value is None:
+                change = 1.0
+            else:
+                dist_to_next = abs(current_value - next_value)
+                if dist_to_next <= epsilon:
+                    change = dist_to_next
+                else:
+                    change = random.uniform(epsilon, dist_to_next)
             new_value = current_value + change
         elif isinstance(effects, Decrease):
+            next_value = get_next_lesser_value(fct=fct, current_value=current_value, state=state, constant_values=constant_values)
+            epsilon = 0.1 #1e-9
+            if next_value is None:
+                change = 1.0
+            else:
+                dist_to_next = abs(current_value - next_value)
+                if dist_to_next <= epsilon:
+                    change = dist_to_next
+                else:
+                    change = random.uniform(epsilon, dist_to_next)
             new_value = current_value - change
         elif isinstance(effects, FunctionEqualTo):
             return set({frozenset(state | {FunctionEqualTo(fct, change)})})
@@ -168,10 +190,52 @@ def apply_effects_to_state(state: State, effects: Collection[Optional[Formula]])
     elif isinstance(effects, OneOf):
         new_states = set()
         for effect in effects.operands:
-            new_states |= apply_effects({state}, effect)
+            new_states |= apply_effects({state}, effect, constant_values)
         return frozenset(new_states)
     else:
         raise ValueError("Unknown effect type: {}".format(type(effects)))
+
+
+def get_next_greater_value(fct, current_value, state, constant_values):
+    candidates = []
+    for fact in state:
+        if isinstance(fact, FunctionEqualTo):
+            left, right = fact.operands
+            if isinstance(left, NumericFunction):
+                if isinstance(right, NumericValue):
+                    if right.value > current_value:
+                        candidates.append(float(right.value))
+                else:
+                    pass
+                    #TODO?
+    if constant_values:
+        for num in constant_values:
+            if num > current_value:
+                candidates.append(float(num))
+    if not candidates:
+        return None
+    return min(candidates, key=lambda v: abs(v - current_value))
+
+
+def get_next_lesser_value(fct, current_value, state, constant_values):
+    candidates = []
+    for fact in state:
+        if isinstance(fact, FunctionEqualTo):
+            left, right = fact.operands
+            if isinstance(left, NumericFunction):
+                if isinstance(right, NumericValue):
+                    if right.value < current_value:
+                        candidates.append(float(right.value))
+                else:
+                    pass
+                    #TODO?
+    if constant_values:
+        for num in constant_values:
+            if num < current_value:
+                candidates.append(float(num))
+    if not candidates:
+        return None
+    return min(candidates, key=lambda v: abs(v - current_value))
 
 
 class Alive(Enum):
